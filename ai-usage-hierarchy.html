@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The AI Usage Hierarchy</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0b0f;
+    --surface: #141318;
+    --border: #2a2830;
+    --text: #e8e6ed;
+    --text-dim: #8b879a;
+    --accent-1: #ff6b4a;
+    --accent-2: #c084fc;
+    --accent-3: #38bdf8;
+    --accent-4: #34d399;
+    --accent-5: #fbbf24;
+    --accent-6: #f472b6;
+    --accent-7: #a78bfa;
+    --accent-8: #e2e8f0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .noise {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  header {
+    text-align: center;
+    padding: 80px 40px 40px;
+    position: relative;
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--text-dim), transparent);
+  }
+
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: clamp(2.4rem, 5vw, 3.8rem);
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--text) 0%, var(--text-dim) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    max-width: 520px;
+    margin: 0 auto;
+    font-weight: 300;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 60px 24px 100px;
+    position: relative;
+  }
+
+  /* The vertical spine */
+  .spine {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, var(--border) 10%, var(--border) 90%, transparent);
+    transform: translateX(-50%);
+  }
+
+  .direction-label {
+    position: sticky;
+    top: 16px;
+    z-index: 10;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .direction-label span {
+    display: inline-block;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 6px 20px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+  }
+
+  .level {
+    position: relative;
+    margin-bottom: 8px;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .level:nth-child(2) { animation-delay: 0.05s; }
+  .level:nth-child(3) { animation-delay: 0.1s; }
+  .level:nth-child(4) { animation-delay: 0.15s; }
+  .level:nth-child(5) { animation-delay: 0.2s; }
+  .level:nth-child(6) { animation-delay: 0.25s; }
+  .level:nth-child(7) { animation-delay: 0.3s; }
+  .level:nth-child(8) { animation-delay: 0.35s; }
+  .level:nth-child(9) { animation-delay: 0.4s; }
+  .level:nth-child(10) { animation-delay: 0.45s; }
+
+  .level-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .level-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+
+  .level-card:hover {
+    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  }
+
+  .level-card:hover::before {
+    opacity: 1;
+  }
+
+  .level-card.expanded {
+    border-color: transparent;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  }
+
+  .level-card.expanded::before {
+    opacity: 1;
+  }
+
+  .level-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .level-number {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 2.2rem;
+    line-height: 1;
+    min-width: 42px;
+    transition: color 0.3s;
+  }
+
+  .level-meta {
+    flex: 1;
+  }
+
+  .level-tier {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    transition: color 0.3s;
+  }
+
+  .level-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-size: 1.45rem;
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+
+  .level-oneliner {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-weight: 300;
+  }
+
+  .expand-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    transition: transform 0.3s ease, color 0.3s;
+    flex-shrink: 0;
+    margin-top: 8px;
+  }
+
+  .level-card.expanded .expand-icon {
+    transform: rotate(180deg);
+  }
+
+  .level-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+    padding: 0 0 0 62px;
+  }
+
+  .level-card.expanded .level-details {
+    max-height: 800px;
+    padding: 20px 0 4px 62px;
+  }
+
+  .detail-section {
+    margin-bottom: 18px;
+  }
+
+  .detail-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .example-prompts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .example-prompt {
+    font-size: 0.82rem;
+    color: var(--text);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-style: italic;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .detail-text {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  .shift-description {
+    font-size: 0.82rem;
+    color: var(--text);
+    line-height: 1.7;
+    border-left: 2px solid;
+    padding-left: 14px;
+    margin-top: 4px;
+  }
+
+  /* Color themes per level */
+  .level[data-level="1"] .level-card::before { background: linear-gradient(90deg, var(--accent-3), transparent); }
+  .level[data-level="1"] .level-number, .level[data-level="1"] .level-tier { color: var(--accent-3); }
+  .level[data-level="1"] .shift-description { border-color: var(--accent-3); }
+
+  .level[data-level="2"] .level-card::before { background: linear-gradient(90deg, var(--accent-4), transparent); }
+  .level[data-level="2"] .level-number, .level[data-level="2"] .level-tier { color: var(--accent-4); }
+  .level[data-level="2"] .shift-description { border-color: var(--accent-4); }
+
+  .level[data-level="3"] .level-card::before { background: linear-gradient(90deg, var(--accent-5), transparent); }
+  .level[data-level="3"] .level-number, .level[data-level="3"] .level-tier { color: var(--accent-5); }
+  .level[data-level="3"] .shift-description { border-color: var(--accent-5); }
+
+  .level[data-level="4"] .level-card::before { background: linear-gradient(90deg, var(--accent-1), transparent); }
+  .level[data-level="4"] .level-number, .level[data-level="4"] .level-tier { color: var(--accent-1); }
+  .level[data-level="4"] .shift-description { border-color: var(--accent-1); }
+
+  .level[data-level="5"] .level-card::before { background: linear-gradient(90deg, var(--accent-6), transparent); }
+  .level[data-level="5"] .level-number, .level[data-level="5"] .level-tier { color: var(--accent-6); }
+  .level[data-level="5"] .shift-description { border-color: var(--accent-6); }
+
+  .level[data-level="6"] .level-card::before { background: linear-gradient(90deg, var(--accent-2), transparent); }
+  .level[data-level="6"] .level-number, .level[data-level="6"] .level-tier { color: var(--accent-2); }
+  .level[data-level="6"] .shift-description { border-color: var(--accent-2); }
+
+  .level[data-level="7"] .level-card::before { background: linear-gradient(90deg, var(--accent-7), transparent); }
+  .level[data-level="7"] .level-number, .level[data-level="7"] .level-tier { color: var(--accent-7); }
+  .level[data-level="7"] .shift-description { border-color: var(--accent-7); }
+
+  .level[data-level="8"] .level-card::before { background: linear-gradient(90deg, #fb923c, transparent); }
+  .level[data-level="8"] .level-number, .level[data-level="8"] .level-tier { color: #fb923c; }
+  .level[data-level="8"] .shift-description { border-color: #fb923c; }
+
+  .level[data-level="9"] .level-card::before { background: linear-gradient(90deg, #e879f9, transparent); }
+  .level[data-level="9"] .level-number, .level[data-level="9"] .level-tier { color: #e879f9; }
+  .level[data-level="9"] .shift-description { border-color: #e879f9; }
+
+  .level[data-level="10"] .level-card::before { background: linear-gradient(90deg, var(--accent-8), transparent); }
+  .level[data-level="10"] .level-number, .level[data-level="10"] .level-tier { color: var(--accent-8); }
+  .level[data-level="10"] .shift-description { border-color: var(--accent-8); }
+
+  .zone-divider {
+    text-align: center;
+    padding: 36px 0;
+    position: relative;
+  }
+
+  .zone-divider span {
+    display: inline-block;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-style: italic;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 0 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .zone-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+
+  footer {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    font-style: italic;
+    font-family: 'Cormorant Garamond', serif;
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 50px 20px 30px; }
+    .level-card { padding: 20px 18px; }
+    .level-card.expanded .level-details { padding-left: 0; }
+    .level-number { font-size: 1.6rem; min-width: 32px; }
+    .level-name { font-size: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<header>
+  <h1>The AI Usage Hierarchy</h1>
+  <p class="subtitle">Ten levels of depth — from simple lookup to ontological shift — each unlocking a fundamentally different relationship with thinking itself.</p>
+</header>
+
+<div class="container">
+  <div class="direction-label">
+    <span>↓ deeper leverage &nbsp;&nbsp; surface use ↑</span>
+  </div>
+
+  <!-- LEVEL 1 -->
+  <div class="level" data-level="1">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">01</div>
+        <div class="level-meta">
+          <div class="level-tier">Retrieval</div>
+          <div class="level-name">Factual Lookup</div>
+          <div class="level-oneliner">Using AI as a faster search engine — "What is X?" / "How do I Y?"</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"What is the capital of Bhutan?"</div>
+            <div class="example-prompt">"How do I remove a background in Photoshop?"</div>
+            <div class="example-prompt">"What's the difference between LLC and S-Corp?"</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">What's Happening</div>
+          <div class="detail-text">You already know the question. You just need the answer delivered. AI is a reference desk — faster than Google, more conversational than a wiki. The question is fully formed before you arrive.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL 2 -->
+  <div class="level" data-level="2">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">02</div>
+        <div class="level-meta">
+          <div class="level-tier">Procedure</div>
+          <div class="level-name">Step-by-Step Guidance</div>
+          <div class="level-oneliner">Not just "what" but "walk me through it" — sequenced instruction.</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"Walk me through setting up a Next.js project from scratch."</div>
+            <div class="example-prompt">"Give me a step-by-step plan for preparing for a marathon in 16 weeks."</div>
+            <div class="example-prompt">"How do I negotiate a raise — what do I say and in what order?"</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">What's Happening</div>
+          <div class="detail-text">You know the destination but not the path. You're asking AI to decompose a goal into a sequence. The shift from Level 1: you're trusting AI with the ordering and chunking of knowledge, not just the knowledge itself.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL 3 -->
+  <div class="level" data-level="3">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">03</div>
+        <div class="level-meta">
+          <div class="level-tier">Application</div>
+          <div class="level-name">Situational Advice</div>
+          <div class="level-oneliner">"Given my situation, what should I do?" — contextual judgment.</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"I have $50K saved, I'm 34, no debt. Should I invest in index funds or pay down my mortgage faster?"</div>
+            <div class="example-prompt">"My cofounder and I disagree on pricing. Here's the context… What would you recommend?"</div>
+            <div class="example-prompt">"I got two job offers. Here are the details. What should I weigh?"</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">The Shift</div>
+          <div class="shift-description">You're no longer asking for generic knowledge — you're feeding in your specific situation and asking AI to act as an advisor. This requires trust in AI's judgment, not just its memory.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="zone-divider"><span>— from answers to thinking —</span></div>
+
+  <!-- LEVEL 4 -->
+  <div class="level" data-level="4">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">04</div>
+        <div class="level-meta">
+          <div class="level-tier">Clarification</div>
+          <div class="level-name">Problem Articulation</div>
+          <div class="level-oneliner">"Help me figure out what I'm actually trying to solve."</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"Something feels off about our product-market fit but I can't articulate what. Can you ask me questions to help me get clarity?"</div>
+            <div class="example-prompt">"I keep procrastinating on this project and I don't know why. Help me figure out what's really going on."</div>
+            <div class="example-prompt">"I have a vague sense our team structure is wrong. Help me name the actual problem."</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">The Shift</div>
+          <div class="shift-description">You arrive without a clear question. The value of AI here is that it helps you formulate the question itself. This is a qualitative leap — you're using AI not because you lack answers, but because you lack clarity on what to even ask.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL 5 -->
+  <div class="level" data-level="5">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">05</div>
+        <div class="level-meta">
+          <div class="level-tier">Strategy</div>
+          <div class="level-name">Framework & Mental Model Selection</div>
+          <div class="level-oneliner">"How should I even think about this?" — choosing the lens.</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"What frameworks exist for thinking about whether to build vs. buy?"</div>
+            <div class="example-prompt">"I need to make a decision about my career. What are the different ways someone could think about a decision like this — not the answer, but the approach?"</div>
+            <div class="example-prompt">"Is this a prioritization problem, a resource-allocation problem, or a strategy problem? Help me figure out what kind of problem it is."</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">The Shift</div>
+          <div class="shift-description">You're not asking for the answer or even the question — you're asking for the thinking tool. Which model, framework, or discipline should you use to approach the problem? AI becomes a navigator across fields of thought.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL 6 -->
+  <div class="level" data-level="6">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">06</div>
+        <div class="level-meta">
+          <div class="level-tier">Reasoning</div>
+          <div class="level-name">Thinking Partnership</div>
+          <div class="level-oneliner">"Think with me" — real-time collaborative reasoning.</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"Let me talk through my reasoning on this. Push back where my logic is weak and help me strengthen the argument."</div>
+            <div class="example-prompt">"I'm going to share my draft strategy. Steelman it, then try to break it."</div>
+            <div class="example-prompt">"I think the root cause is X. Play devil's advocate — what am I not seeing?"</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">The Shift</div>
+          <div class="shift-description">AI is no longer a vendor of answers. It's a sparring partner. You're generating ideas and using AI as a stress-test, a mirror, a second mind. The value is in the dynamic — the back-and-forth — not any single output.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="zone-divider"><span>— from thinking to seeing —</span></div>
+
+  <!-- LEVEL 7 -->
+  <div class="level" data-level="7">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">07</div>
+        <div class="level-meta">
+          <div class="level-tier">Metacognition</div>
+          <div class="level-name">Examining Your Own Thinking</div>
+          <div class="level-oneliner">"What patterns, biases, or blind spots are showing up in how I think?"</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"Look at the last five decisions I've described to you. What patterns do you notice in how I make decisions?"</div>
+            <div class="example-prompt">"I tend to frame everything as an optimization problem. What might I be missing by defaulting to that lens?"</div>
+            <div class="example-prompt">"What cognitive biases might be at play in the way I just described my situation?"</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">The Shift</div>
+          <div class="shift-description">You're turning the lens on yourself. Not "help me think about the problem" but "help me see how I think." AI becomes a mirror for your cognition — revealing defaults, patterns, and biases you can't see from inside them.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL 8 -->
+  <div class="level" data-level="8">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">08</div>
+        <div class="level-meta">
+          <div class="level-tier">Assumptions</div>
+          <div class="level-name">Surfacing Hidden Beliefs</div>
+          <div class="level-oneliner">"What am I assuming that I don't even know I'm assuming?"</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"Based on everything I've told you, what unstated assumptions am I operating from?"</div>
+            <div class="example-prompt">"I keep coming back to the same conclusion. What beliefs would have to be true for that conclusion to hold? Are any of them shaky?"</div>
+            <div class="example-prompt">"What's the thing I seem to be taking as a given that might not actually be true?"</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">The Shift</div>
+          <div class="shift-description">This goes beneath conscious thought patterns into the substrate of belief. You're asking AI to excavate premises you didn't know you held — the invisible load-bearing walls of your reasoning. Changing one of these can restructure everything above it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL 9 -->
+  <div class="level" data-level="9">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">09</div>
+        <div class="level-meta">
+          <div class="level-tier">Identity</div>
+          <div class="level-name">Examining "Who I'm Being"</div>
+          <div class="level-oneliner">"What identity or role am I operating from — and is it serving me?"</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"When I describe this conflict with my team, who am I being? A victim? A hero? A fixer? Help me see the role I've cast myself in."</div>
+            <div class="example-prompt">"I notice I always position myself as the underdog in my business. What would change if I stopped identifying that way?"</div>
+            <div class="example-prompt">"What kind of leader do my decisions reveal me to be — not the kind I say I want to be, but the kind I'm actually being?"</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">The Shift</div>
+          <div class="shift-description">Below assumptions lie identities — the self-concept from which all assumptions, frameworks, and questions naturally arise. "I'm a scrappy underdog" produces entirely different questions than "I'm a market leader." AI helps you see the character you're unconsciously playing.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL 10 -->
+  <div class="level" data-level="10">
+    <div class="level-card" onclick="this.classList.toggle('expanded')">
+      <div class="level-header">
+        <div class="level-number">10</div>
+        <div class="level-meta">
+          <div class="level-tier">Ontological</div>
+          <div class="level-name">Seeing How the World Occurs to You</div>
+          <div class="level-oneliner">"Help me see the water I'm swimming in — the reality I've constructed that I mistake for reality itself."</div>
+        </div>
+        <div class="expand-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+        </div>
+      </div>
+      <div class="level-details">
+        <div class="detail-section">
+          <div class="detail-label">Example Prompts</div>
+          <div class="example-prompts">
+            <div class="example-prompt">"I realize every question I've asked you today presupposes that my business is a problem to be solved. What if it's not? What would my questions even be if I saw it differently?"</div>
+            <div class="example-prompt">"I experience my life as a series of obligations. Help me see what worldview makes that feel true — and what an alternative world might look like."</div>
+            <div class="example-prompt">"I'm not asking you to solve anything. I'm asking you to help me see the entire frame I've been operating inside, so I can step outside of it."</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">The Shift</div>
+          <div class="shift-description">This is the deepest level. You're not working on a problem — you're examining the ontological context from which all problems, identities, assumptions, and thinking arise. The question isn't "what should I do?" or even "who am I being?" — it's "what is the nature of the world as it occurs to me, and how does that occurrence generate everything downstream?" A shift here doesn't solve problems. It dissolves them.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Each level contains every level below it. You can enter at any point — but the deeper you go, the more everything above transforms.
+</footer>
+
+<script>
+  // Auto-expand level 10 after load for dramatic effect
+  setTimeout(() => {
+    const lastCard = document.querySelector('.level[data-level="10"] .level-card');
+    // Don't auto-expand, let user discover
+  }, 2000);
+</script>
+</body>
+</html>
